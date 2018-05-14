@@ -177,6 +177,65 @@ class Category(TwitterModel):
             size=self.size)
 
 
+class MessageDataObject(TwitterModel):
+
+    """A class representing a Message Data Object. """
+
+    def __init__(self, **kwargs):
+        self.param_defaults = {
+            'text': None,
+        }
+
+        for (param, default) in self.param_defaults.items():
+            setattr(self, param, kwargs.get(param, default))
+
+    def __repr__(self):
+        if self.text and len(self.text) > 140:
+            text = "{text}[...]".format(text=self.text[:140])
+        else:
+            text = self.text
+        return "MessageDataObject(Text='{text!r}')".format(
+            text=text)
+
+
+class MessageCreateObject(TwitterModel):
+
+    """A class representing a Message Create Object. """
+
+    def __init__(self, **kwargs):
+        self.param_defaults = {
+            'id': None,
+            'created_timestamp': None,
+            'recipient_id': None,
+            'sender_id': None,
+            'source_app_id': None,
+            'message_data': None,
+        }
+
+        for (param, default) in self.param_defaults.items():
+            setattr(self, param, kwargs.get(param, default))
+
+        if 'message_create' in kwargs:
+            message_create = kwargs.get('message_create', None)
+            self.sender_id = message_create.get('sender_id', None)
+            self.message_data = MessageDataObject.NewFromJsonDict(message_create.get('message_data', None))
+
+            if 'target' in message_create:
+                target = message_create.get('target', None)
+                self.recipient_id = target.get('recipient_id', None)
+
+    def __repr__(self):
+        if self.text and len(self.text) > 140:
+            text = "{text}[...]".format(text=self.message_data.text[:140])
+        else:
+            text = self.message_data.text
+        return "MessageCreateObject(ID={dm_id}, Sender={sender}, Created={time}, Text='{text!r}')".format(
+            dm_id=self.id,
+            sender=self.sender_id,
+            time=self.created_timestamp,
+            text=text)
+
+
 class DirectMessage(TwitterModel):
 
     """A class representing a Direct Message. """

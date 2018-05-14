@@ -48,6 +48,7 @@ from twitter import (
     _FileCache,
     Category,
     DirectMessage,
+    MessageCreateObject,
     List,
     Status,
     Trend,
@@ -2869,6 +2870,48 @@ class Api(object):
         else:
             return User.NewFromJsonDict(data)
 
+    def DirectMessageEventList(self,
+                               count=None,
+                               cursor=None,
+                               return_json=False):
+        """Returns a list of the direct messages to the authenticating user.
+        Args:
+          count (int, optional):
+            Specifies the number of direct messages to try and retrieve, up to a
+            maximum of 50. The value of count is best thought of as a limit to the
+            number of Tweets to return because suspended or deleted content is
+            removed after the count has been applied. [Optional]
+          cursor (int, optional):
+            If you want more than 50 messages, you can use this and get X messages
+            each time. You must recall it and increment the page value until it
+            return nothing. You can't use count option with it. First value is 1 and
+            not 0.
+          return_json (bool, optional):
+            If True JSON data will be returned, instead of twitter.User
+
+        Returns:
+          Touple: (<next_cursor>, <A sequence of twitter.MessageCreateObject instances>)
+        """
+        url = '%s/direct_messages/events/list.json' % self.base_url
+        parameters = {}
+
+        if count:
+            parameters['count'] = enf_type('count', int, count)
+        if cursor:
+            parameters['cursor'] = enf_type('cursor', int, cursor)
+
+        resp = self._RequestUrl(url, 'GET', data=parameters)
+        data = self._ParseAndCheckTwitter(resp.content.decode('utf-8'))
+
+        if return_json:
+            return data
+        else:
+            events = [MessageCreateObject.NewFromJsonDict(x) for x in data['events']]
+            next_cursor = None
+            if 'next_cursor' in data:
+                next_cursor = data['next_cursor']
+            return (next_cursor, events)
+
     def GetDirectMessages(self,
                           since_id=None,
                           max_id=None,
@@ -2879,7 +2922,7 @@ class Api(object):
                           page=None,
                           return_json=False):
         """Returns a list of the direct messages sent to the authenticating user.
-
+        *DEPRECATED*
         Args:
           since_id:
             Returns results with an ID greater than (that is, more recent
@@ -2945,7 +2988,7 @@ class Api(object):
                               include_entities=True,
                               return_json=False):
         """Returns a list of the direct messages sent by the authenticating user.
-
+        *DEPRECATED*
         Args:
           since_id (int, optional):
             Returns results with an ID greater than (that is, more recent
@@ -2993,13 +3036,42 @@ class Api(object):
         else:
             return [DirectMessage.NewFromJsonDict(x) for x in data]
 
+    def DirectMessageEventNew(self,
+                              text,
+                              user_id,
+                              return_json=False):
+        """Post a twitter direct message from the authenticated user.
+        Args:
+          text: The message text to be posted.
+          user_id:
+            The ID of the user who should receive the direct message.
+          return_json (bool, optional):
+            If True JSON data will be returned, instead of twitter.User
+        Returns:
+          A twitter.MessageCreateObject instance representing the message posted
+        """
+        url = '%s/direct_messages/events/new.json' % self.base_url
+        message = {}
+        message['target'] = {'recipient_id': user_id}}
+        message['message_data'] = {'text': text}
+
+        json = {'event': {'type': 'message_create', 'message_create': message}}
+
+        resp = self._RequestUrl(url, 'POST', json=json)
+        data = self._ParseAndCheckTwitter(resp.content.decode('utf-8'))
+
+        if return_json:
+            return data
+        else:
+            return MessageCreateObject.NewFromJsonDict(data)
+
     def PostDirectMessage(self,
                           text,
                           user_id=None,
                           screen_name=None,
                           return_json=False):
         """Post a twitter direct message from the authenticated user.
-
+        *DEPRECATED*
         Args:
           text: The message text to be posted.
           user_id:
@@ -4947,9 +5019,6 @@ class Api(object):
                     except ValueError:
                         pass
 
-        if not data:
-            data = {}
-
         if verb == 'POST':
             if data:
                 if 'media_ids' in data:
@@ -4965,6 +5034,9 @@ class Api(object):
                 resp = 0  # POST request, but without data or json
 
         elif verb == 'GET':
+            if not data:
+                data = {}
+
             data['tweet_mode'] = self.tweet_mode
             url = self._BuildUrl(url, extra_params=data)
             resp = requests.get(url, auth=self.__auth, timeout=self._timeout, proxies=self.proxies)
