@@ -2898,18 +2898,19 @@ class Api(object):
         if count:
             parameters['count'] = enf_type('count', int, count)
         if cursor:
-            parameters['cursor'] = enf_type('cursor', int, cursor)
+            parameters['cursor'] = enf_type('cursor', str, cursor)
 
         resp = self._RequestUrl(url, 'GET', data=parameters)
         data = self._ParseAndCheckTwitter(resp.content.decode('utf-8'))
 
+        next_cursor = None
+        if 'next_cursor' in data:
+            next_cursor = data['next_cursor']
+
         if return_json:
-            return data
+            return (next_cursor, data)
         else:
             events = [MessageCreateObject.NewFromJsonDict(x) for x in data['events']]
-            next_cursor = None
-            if 'next_cursor' in data:
-                next_cursor = data['next_cursor']
             return (next_cursor, events)
 
     def GetDirectMessages(self,
@@ -3052,7 +3053,7 @@ class Api(object):
         """
         url = '%s/direct_messages/events/new.json' % self.base_url
         message = {}
-        message['target'] = {'recipient_id': user_id}}
+        message['target'] = {'recipient_id': user_id}
         message['message_data'] = {'text': text}
 
         json = {'event': {'type': 'message_create', 'message_create': message}}
@@ -3063,7 +3064,7 @@ class Api(object):
         if return_json:
             return data
         else:
-            return MessageCreateObject.NewFromJsonDict(data)
+            return MessageCreateObject.NewFromJsonDict(data['event'])
 
     def PostDirectMessage(self,
                           text,

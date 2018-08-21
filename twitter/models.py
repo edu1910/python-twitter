@@ -225,7 +225,7 @@ class MessageCreateObject(TwitterModel):
                 self.recipient_id = target.get('recipient_id', None)
 
     def __repr__(self):
-        if self.text and len(self.text) > 140:
+        if self.message_data.text and len(self.message_data.text) > 140:
             text = "{text}[...]".format(text=self.message_data.text[:140])
         else:
             text = self.message_data.text
